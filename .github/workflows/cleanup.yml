@@ -1,0 +1,32 @@
+name: Cleanup AWS Resources
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up AWS CLI
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Delete ECS Service
+      run: |
+        aws ecs delete-service --cluster ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE }} --force
+
+    - name: Delete ECS Cluster
+      run: |
+        aws ecs delete-cluster --cluster-name ${{ env.ECS_CLUSTER }}
+
+    - name: Delete ECR Repository
+      run: |
+        aws ecr delete-repository --repository-name ${{ env.ECR_REPOSITORY }} --force
+
+    - name: Detach and Delete IAM Role
+      run: |
+        aws iam detach-role-policy --role-name ecsTaskExecutionRole --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        aws iam delete-role --role-name ecsTaskExecutionRole
