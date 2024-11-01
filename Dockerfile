@@ -1,12 +1,25 @@
-FROM python:3.8-slim
+# Dockerfile
+FROM python:3.9-slim
 
+# Install gcc and other dependencies
+RUN apt-get update && apt-get install -y gcc
+
+# Set working directory
 WORKDIR /app
 
+# Copy dependencies and install them
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY app/ .
+# Copy all source and model directories
+COPY src/ src/
+RUN mkdir models  # Ensure the models directory exists in the container
 
-EXPOSE 80
+# Run the training script to generate the model
+RUN python src/train_model.py
 
-CMD ["python", "app.py"]
+# Expose port for Gradio
+EXPOSE 7860
+
+# Run the Gradio application
+CMD ["python", "src/app.py"]
