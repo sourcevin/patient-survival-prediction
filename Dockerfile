@@ -13,6 +13,9 @@ RUN pip install -r requirements.txt
 
 # Copy all source and model directories
 COPY src/ src/
+
+COPY data/ data/
+
 RUN mkdir models  # Ensure the models directory exists in the container
 
 # Run the training script to generate the model
