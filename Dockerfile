@@ -24,5 +24,7 @@ RUN python src/train_model.py
 # Expose port for Gradio
 EXPOSE 7860
 
+EXPOSE 9000
+
 # Run the Gradio application
 CMD ["python", "src/app.py"]

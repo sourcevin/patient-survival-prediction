@@ -4,3 +4,6 @@ scikit-learn
 numpy
 pandas
 joblib
+fastapi
+starlette
+prometheus_client

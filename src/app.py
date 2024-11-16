@@ -1,11 +1,27 @@
-# src/app.py
 import gradio as gr
-import pickle
 import numpy as np
-#from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
-#from flask import Flask, Response
-import threading
 import joblib
+from prometheus_client import Gauge, generate_latest
+from fastapi import FastAPI
+from starlette.responses import Response
+
+# FastAPI app for Prometheus metrics
+app = FastAPI()
+
+################################# Prometheus related code START ######################################################
+# Prometheus metrics
+prediction_count = Gauge("heart_failure_prediction_count", "Number of predictions made")
+last_prediction_result = Gauge("last_prediction_result", "Last prediction result (1=Did not survive, 0=Survived)")
+
+# Function for updating metrics
+def update_metrics(prediction):
+    prediction_count.inc()  # Increment prediction count
+    last_prediction_result.set(prediction)
+
+@app.get("/metrics")
+async def get_metrics():
+    return Response(content=generate_latest(), media_type="text/plain")
+################################# Prometheus related code END ########################################################
 
 # Load the trained model
 save_file_name = "xgboost-model.pkl"
@@ -18,8 +34,9 @@ def predict_death_event(age, anaemia, creatinine_phosphokinase, diabetes, ejecti
     input_data = np.array([[age, int(anaemia), creatinine_phosphokinase, int(diabetes), ejection_fraction,
                             int(high_blood_pressure), platelets, serum_creatinine, serum_sodium, 
                             int(sex), int(smoking), time]])
-    prediction = loaded_model.predict(input_data)
-    return "Survived" if prediction[0] == 0 else "Did not survive"
+    prediction = loaded_model.predict(input_data)[0]  # 0 or 1
+    update_metrics(prediction)  # Update Prometheus metrics
+    return "Survived" if prediction == 0 else "Did not survive"
 
 # Gradio interface
 inputs = [
@@ -45,6 +62,15 @@ description = "Predict survival of patients with heart failure based on clinical
 iface = gr.Interface(fn=predict_death_event, inputs=inputs, outputs=outputs, 
                      title=title, description=description, allow_flagging='never')
 
+if __name__ == "__main__":
+    import uvicorn
+    # Start Gradio in a thread and FastAPI for metrics
+    import threading
 
-    # Start Gradio app
-iface.launch(server_name="0.0.0.0", server_port=7860)  # Ensure different port for Gradio
+    def run_gradio():
+        iface.launch(server_name="0.0.0.0", server_port=7860)
+
+    threading.Thread(target=run_gradio, daemon=True).start()
+
+    # Start FastAPI app
+    uvicorn.run(app, host="0.0.0.0", port=9000)
